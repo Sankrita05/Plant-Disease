@@ -1,27 +1,48 @@
 import random
-from django.core.mail import send_mail
-from .models import OTP
-from .models import TemporaryUserData
-from django.utils import timezone
+import requests
+import logging
 from datetime import timedelta
-from django.db.models import Q
-from django.conf import settings
-from twilio.rest import Client
 
-# To Clean up duplicate temporary entries
+from django.conf import settings
+from django.utils import timezone
+from django.db.models import Q
+
+import sib_api_v3_sdk
+from sib_api_v3_sdk.rest import ApiException
+
+from .models import OTP, TemporaryUserData
+
+logger = logging.getLogger('core')  # Use the custom 'core' logger
+
+def generate_otp():
+    """Generate a 6-digit numeric OTP."""
+    return str(random.randint(100000, 999999))
+
+
 def cleanup_temp_user(email, phone_no):
+    """
+    Remove expired or conflicting temporary user entries.
+    This prevents issues with duplicate email or phone registration.
+    """
     expiry_time = timezone.now() - timedelta(minutes=10)
-    TemporaryUserData.objects.filter(
+
+    expired_count = TemporaryUserData.objects.filter(
         Q(email=email) | Q(phone_no=phone_no),
         created_at__lt=expiry_time
     ).delete()
-    
-    # To delete current conflicting entries (e.g., failed attempts)
-    TemporaryUserData.objects.filter(Q(email=email) | Q(phone_no=phone_no)).delete()
 
-# Temporarily save the user data for email verification
+    conflict_count = TemporaryUserData.objects.filter(
+        Q(email=email) | Q(phone_no=phone_no)
+    ).delete()
+
+    logger.info(f"Cleaned up temp users: expired={expired_count}, conflicts={conflict_count}")
+
+
 def create_temp_user(validated_data):
-    return TemporaryUserData.objects.create(
+    """
+    Save user data temporarily before full registration (until OTPs are verified).
+    """
+    temp_user = TemporaryUserData.objects.create(
         first_name=validated_data['first_name'],
         last_name=validated_data['last_name'],
         email=validated_data['email'],
@@ -29,74 +50,111 @@ def create_temp_user(validated_data):
         password=validated_data['password'],
         region=validated_data['region']
     )
+    logger.debug(f"Temporary user created for email: {temp_user.email}")
+    return temp_user
 
-# To generate otp
-def generate_otp():
-    return str(random.randint(100000, 999999))
 
-# To send otp on email
 def send_email_otp(email, purpose='register'):
+    """
+    Send an OTP to the user's email using Brevo (Sendinblue).
+    """
     otp_code = generate_otp()
-    # Optionally delete old OTPs for the same email and purpose
-    if OTP.objects.filter(email=email, purpose=purpose).exists():
-        OTP.objects.filter(email=email, purpose=purpose).delete()
 
+    OTP.objects.filter(email=email, purpose=purpose).delete()
     OTP.objects.create(email=email, otp_code=otp_code, purpose=purpose)
-    try:
-        send_mail(
-            subject='Your OTP Code',
-            message=f'Your OTP is {otp_code}',
-            from_email=settings.DEFAULT_FROM_EMAIL,  # Use settings for flexibility
-            recipient_list=[email],
-            fail_silently=False
-        )
-        return otp_code # Return success if email sent
-    except Exception as e:
-        print(f"Error sending email: {e}")
-        return False  # Return failure if there was an error
-    
 
-# To send otp on mobile
+    configuration = sib_api_v3_sdk.Configuration()
+    configuration.api_key['api-key'] = settings.BREVO_API_KEY
+
+    sender = {
+        "name": settings.EMAIL_OTP_SENDER_NAME,
+        "email": settings.EMAIL_OTP_SENDER_EMAIL
+    }
+
+    subject = "Your OTP Code"
+    html_content = f"<html><body><h3>Your OTP is: <strong>{otp_code}</strong></h3></body></html>"
+
+    to = [{"email": email}]
+    send_smtp_email = sib_api_v3_sdk.SendSmtpEmail(
+        to=to,
+        html_content=html_content,
+        subject=subject,
+        sender=sender
+    )
+
+    try:
+        api_instance = sib_api_v3_sdk.TransactionalEmailsApi(
+            sib_api_v3_sdk.ApiClient(configuration)
+        )
+        api_instance.send_transac_email(send_smtp_email)
+        logger.info(f"Email OTP sent to {email}")
+        return otp_code
+
+    except ApiException as e:
+        logger.error(f"Error sending email OTP via Brevo for {email}: {e}")
+        return False
+
+
 def send_mobile_otp(phone_no, purpose='register'):
+    """
+    Send an OTP to the user's mobile number using Fast2SMS.
+    """
     otp_code = generate_otp()
-    if OTP.objects.filter(phone_no=phone_no, purpose=purpose).exists():
-        OTP.objects.filter(phone_no=phone_no, purpose=purpose).delete()
-    
+
+    OTP.objects.filter(phone_no=phone_no, purpose=purpose).delete()
     OTP.objects.create(phone_no=phone_no, otp_code=otp_code, purpose=purpose)
 
-    # try:
-    #     client = Client(settings.TWILIO_ACCOUNT_SID, settings.TWILIO_AUTH_TOKEN)
-    #     message = client.messages.create(
-    #         body=f"Your OTP is {otp_code}",
-    #         from_=settings.TWILIO_PHONE_NUMBER,
-    #         to=phone_no
-    #     )
-    #     print(f"OTP sent to {phone_no}")
-    #     return True  # Return success if OTP sent
-    # except Exception as e:
-    #     print(f"Error sending OTP via SMS: {e}")
-    #     return False  # Return failure if there was an error
+    url = "https://www.fast2sms.com/dev/bulk"
 
-    print(f"Sending SMS to {phone_no}: Your OTP is {otp_code}")
-    return otp_code
+    headers = {
+        'authorization': settings.FAST2SMS_API_KEY
+    }
+
+    payload = {
+        'sender_id': 'FSTSMS',
+        'message': f'Your OTP is {otp_code}. Do not share it with anyone.',
+        'language': 'english',
+        'route': 'p',
+        'numbers': phone_no
+    }
+    print(f"[DEBUG] Sending OTP to {phone_no}: {otp_code}")
+
+    try:
+        response = requests.post(url, data=payload, headers=headers)
+        if response.status_code == 200:
+            logger.info(f"Mobile OTP sent successfully to {phone_no}")
+            return otp_code
+        else:
+            logger.warning(f"Failed to send mobile OTP to {phone_no}. Response: {response.text}")
+            return False
+    except Exception as e:
+        logger.exception(f"Exception while sending mobile OTP to {phone_no}: {e}")
+        return False
 
 
 def verify_otp(identifier, otp_code, is_email=True):
+    """
+    Verify an OTP against email or phone, checking for expiry and duplication.
+    Returns:
+        - otp instance if valid
+        - error message string if invalid
+    """
     try:
-        if is_email:
-            otp = OTP.objects.filter(email=identifier, otp_code=otp_code).latest('created_at')
-        else:
-            otp = OTP.objects.filter(phone_no=identifier, otp_code=otp_code).latest('created_at')
-    
+        lookup_field = {'email': identifier} if is_email else {'phone_no': identifier}
+        otp = OTP.objects.filter(**lookup_field, otp_code=otp_code).latest('created_at')
     except OTP.DoesNotExist:
+        logger.warning(f"OTP verification failed for {identifier} - OTP not found")
         return None, "Invalid or expired OTP"
 
     if otp.is_verified:
+        logger.info(f"OTP for {identifier} already verified")
         return None, "OTP already verified"
 
     if otp.is_expired():
+        logger.info(f"OTP for {identifier} has expired")
         return None, "OTP has expired"
 
     otp.is_verified = True
     otp.save()
+    logger.info(f"OTP successfully verified for {identifier}")
     return otp, None
