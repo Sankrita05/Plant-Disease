@@ -50,7 +50,7 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
     is_active = models.BooleanField(default=True)
     is_staff = models.BooleanField(default=False)
     is_email_verified = models.BooleanField(default=False)
-    is_mobile_verified = models.BooleanField(default=False)
+    # is_mobile_verified = models.BooleanField(default=False)
 
     objects = CustomUserManager()
 
@@ -66,7 +66,7 @@ class OTP(models.Model):
     Stores OTPs for email or phone number verification.
     """
     email = models.EmailField(null=True, blank=True)
-    phone_no = models.CharField(max_length=20, null=True, blank=True)
+    # phone_no = models.CharField(max_length=20, null=True, blank=True)
     otp_code = models.CharField(max_length=6)
     created_at = models.DateTimeField(auto_now_add=True)
     is_verified = models.BooleanField(default=False)
@@ -99,7 +99,7 @@ class TemporaryUserData(models.Model):
     region = models.CharField(max_length=100)
     
     is_email_verified = models.BooleanField(default=False)
-    is_mobile_verified = models.BooleanField(default=False)
+    # is_mobile_verified = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):

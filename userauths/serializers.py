@@ -66,14 +66,14 @@ class SendEmailOTPSerializer(serializers.Serializer):
         logger.info(f"SendEmailOTPSerializer validating email: {email}")
         return email
 
-class SendMobileOTPSerializer(serializers.Serializer):
-    """
-    Serializer for sending OTP to a mobile number.
-    """
-    phone_no = serializers.CharField(max_length=20)
-    def validate_phone_no(self, phone_no):
-        logger.info(f"SendMobileOTPSerializer validating phone_no: {phone_no}")
-        return phone_no
+# class SendMobileOTPSerializer(serializers.Serializer):
+#     """
+#     Serializer for sending OTP to a mobile number.
+#     """
+#     phone_no = serializers.CharField(max_length=20)
+#     def validate_phone_no(self, phone_no):
+#         logger.info(f"SendMobileOTPSerializer validating phone_no: {phone_no}")
+#         return phone_no
 
 class OTPVerifySerializer(serializers.Serializer):
     """

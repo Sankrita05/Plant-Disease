@@ -96,48 +96,48 @@ def send_email_otp(email, purpose='register'):
         return False
 
 
-def send_mobile_otp(phone_no, purpose='register'):
-    """
-    Send an OTP to the user's mobile number using Fast2SMS.
-    """
-    otp_code = generate_otp()
+# def send_mobile_otp(phone_no, purpose='register'):
+#     """
+#     Send an OTP to the user's mobile number using Fast2SMS.
+#     """
+#     otp_code = generate_otp()
 
-    OTP.objects.filter(phone_no=phone_no, purpose=purpose).delete()
-    OTP.objects.create(phone_no=phone_no, otp_code=otp_code, purpose=purpose)
+#     OTP.objects.filter(phone_no=phone_no, purpose=purpose).delete()
+#     OTP.objects.create(phone_no=phone_no, otp_code=otp_code, purpose=purpose)
 
-    print(f"[DEBUG] Sending OTP to {phone_no}: {otp_code}")
-    logger.info(f"Sending otp to {phone_no}: {otp_code}")
-    url = "https://www.fast2sms.com/dev/bulkV2"
+#     print(f"[DEBUG] Sending OTP to {phone_no}: {otp_code}")
+#     logger.info(f"Sending otp to {phone_no}: {otp_code}")
+#     url = "https://www.fast2sms.com/dev/bulkV2"
 
-    payload = {
-        # 'sender_id': 'FSTSMS',
-        # 'message': f'Your OTP is {otp_code}. Do not share it with anyone.',
-        # 'language': 'english',
-        # 'route': 'p',
-        # 'numbers': phone_no
-        "variables_values": otp_code,
-        "route": "otp",
-        "numbers": phone_no
-    }
+#     payload = {
+#         # 'sender_id': 'FSTSMS',
+#         # 'message': f'Your OTP is {otp_code}. Do not share it with anyone.',
+#         # 'language': 'english',
+#         # 'route': 'p',
+#         # 'numbers': phone_no
+#         "variables_values": otp_code,
+#         "route": "otp",
+#         "numbers": phone_no
+#     }
 
-    headers = {
-        'authorization': settings.FAST2SMS_API_KEY,
-        'Content-Type': "application/x-www-form-urlencoded",
-        'Cache-Control': "no-cache",
-    }
+#     headers = {
+#         'authorization': settings.FAST2SMS_API_KEY,
+#         'Content-Type': "application/x-www-form-urlencoded",
+#         'Cache-Control': "no-cache",
+#     }
 
-    try:
-        # response = requests.post(url, data=payload, headers=headers)
-        response = requests.request("POST", url, data=payload, headers=headers)
-        if response.status_code == 200:
-            logger.info(f"Mobile OTP sent successfully to {phone_no}")
-            return otp_code
-        else:
-            logger.warning(f"Failed to send mobile OTP to {phone_no}. Response: {response.text}")
-            return False
-    except Exception as e:
-        logger.exception(f"Exception while sending mobile OTP to {phone_no}: {e}")
-        return False
+#     try:
+#         # response = requests.post(url, data=payload, headers=headers)
+#         response = requests.request("POST", url, data=payload, headers=headers)
+#         if response.status_code == 200:
+#             logger.info(f"Mobile OTP sent successfully to {phone_no}")
+#             return otp_code
+#         else:
+#             logger.warning(f"Failed to send mobile OTP to {phone_no}. Response: {response.text}")
+#             return False
+#     except Exception as e:
+#         logger.exception(f"Exception while sending mobile OTP to {phone_no}: {e}")
+#         return False
 
 
 # payload = "sender_id=DLT_SENDER_ID&message=YOUR_MESSAGE_ID&variables_values=12345|asdaswdx&route=dlt&numbers=9999999999,8888888888,7777777777"

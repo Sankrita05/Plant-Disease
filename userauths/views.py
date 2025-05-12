@@ -54,22 +54,23 @@ class SendEmailOTPView(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
-class SendMobileOTPView(APIView):
-    permission_classes = (AllowAny,)
+# class SendMobileOTPView(APIView):
+#     permission_classes = (AllowAny,)
 
-    def post(self, request):
-        serializer = SendMobileOTPSerializer(data=request.data)
-        if serializer.is_valid():
-            phone_no = serializer.validated_data['phone_no']
-            send_mobile_otp(phone_no=phone_no)
-            logger.info(f"OTP sent to mobile: {phone_no}")
-            return Response({"message": "OTP sent to mobile."}, status=status.HTTP_200_OK)
-        logger.error("Failed to send mobile OTP", extra={"errors": serializer.errors})
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+#     def post(self, request):
+#         serializer = SendMobileOTPSerializer(data=request.data)
+#         if serializer.is_valid():
+#             phone_no = serializer.validated_data['phone_no']
+#             send_mobile_otp(phone_no=phone_no)
+#             logger.info(f"OTP sent to mobile: {phone_no}")
+#             return Response({"message": "OTP sent to mobile."}, status=status.HTTP_200_OK)
+#         logger.error("Failed to send mobile OTP", extra={"errors": serializer.errors})
+#         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
 class VerifyEmailOTPView(APIView):
     permission_classes = (AllowAny,)
+    serializer_class = RegisterSerializer
 
     def post(self, request):
         email = request.data.get("email")
@@ -87,28 +88,6 @@ class VerifyEmailOTPView(APIView):
 
         temp_user.is_email_verified = True
         temp_user.save()
-        send_mobile_otp(temp_user.phone_no)
-        logger.info(f"Email verified and mobile OTP sent for: {email}")
-        return Response({"message": "Email verified successfully. Mobile OTP sent."})
-
-class VerifyMobileOTPView(APIView):
-    permission_classes = (AllowAny,)
-    serializer_class = RegisterSerializer
-    def post(self, request):
-        phone_no = request.data.get('phone_no')
-        otp_code = request.data.get('otp_code')
-
-        otp, error = verify_otp(phone_no, otp_code, is_email=False)
-        if error:
-            logger.warning(f"Mobile OTP verification failed for {phone_no}: {error}")
-            return Response({"error": error}, status=400)
-
-        try:
-            temp_user = TemporaryUserData.objects.get(phone_no=phone_no)
-        except TemporaryUserData.DoesNotExist:
-            logger.error(f"No temporary user data found for mobile: {phone_no}")
-            return Response({"error": "No user data found for this mobile number."}, status=status.HTTP_400_BAD_REQUEST)
-
         user = CustomUser(
             first_name=temp_user.first_name,
             last_name=temp_user.last_name,
@@ -116,25 +95,72 @@ class VerifyMobileOTPView(APIView):
             phone_no=temp_user.phone_no,
             region=temp_user.region,
             is_email_verified=True,
-            is_mobile_verified=True
+            password = temp_user.password 
+            # is_mobile_verified=True
         )
-
-        user.set_password(temp_user.password)
+        # user.set_password(temp_user.password)
         user.save()
         temp_user.delete()
-
         token = RefreshToken.for_user(user)
         tokens = {
             "refresh": str(token),
             "access": str(token.access_token)
         }
-
-        # Serialize user
         serializer = RegisterSerializer(user)
         data = serializer.data
         data["tokens"] = tokens
         logger.info(f"User successfully registered: {user.email}")
         return Response( {"message": "User successfully registered."}, status=status.HTTP_201_CREATED)
+
+
+        # send_mobile_otp(temp_user.phone_no)
+        # logger.info(f"Email verified and mobile OTP sent for: {email}")
+        # return Response({"message": "Email verified successfully. Mobile OTP sent."})
+
+# class VerifyMobileOTPView(APIView):
+#     permission_classes = (AllowAny,)
+#     serializer_class = RegisterSerializer
+#     def post(self, request):
+#         phone_no = request.data.get('phone_no')
+#         otp_code = request.data.get('otp_code')
+
+#         otp, error = verify_otp(phone_no, otp_code, is_email=False)
+#         if error:
+#             logger.warning(f"Mobile OTP verification failed for {phone_no}: {error}")
+#             return Response({"error": error}, status=400)
+
+#         try:
+#             temp_user = TemporaryUserData.objects.get(phone_no=phone_no)
+#         except TemporaryUserData.DoesNotExist:
+#             logger.error(f"No temporary user data found for mobile: {phone_no}")
+#             return Response({"error": "No user data found for this mobile number."}, status=status.HTTP_400_BAD_REQUEST)
+
+#         user = CustomUser(
+#             first_name=temp_user.first_name,
+#             last_name=temp_user.last_name,
+#             email=temp_user.email,
+#             phone_no=temp_user.phone_no,
+#             region=temp_user.region,
+#             is_email_verified=True,
+#             is_mobile_verified=True
+#         )
+
+#         user.set_password(temp_user.password)
+#         user.save()
+#         temp_user.delete()
+
+#         token = RefreshToken.for_user(user)
+#         tokens = {
+#             "refresh": str(token),
+#             "access": str(token.access_token)
+#         }
+
+#         # Serialize user
+#         serializer = RegisterSerializer(user)
+#         data = serializer.data
+#         data["tokens"] = tokens
+#         logger.info(f"User successfully registered: {user.email}")
+#         return Response( {"message": "User successfully registered."}, status=status.HTTP_201_CREATED)
 
 
 class LoginView(APIView):
