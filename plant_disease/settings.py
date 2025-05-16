@@ -222,3 +222,8 @@ SIMPLE_JWT = {
 BREVO_API_KEY = os.getenv("BREVO_API_KEY")  # For sending emails using Brevo
 EMAIL_OTP_SENDER_NAME = 'Plant-Disease'
 EMAIL_OTP_SENDER_EMAIL = 'sankritapatel2@gmail.com'  # Should be replaced with a client/production address
+
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:3000",
+    "http://localhost:8080",
+]
