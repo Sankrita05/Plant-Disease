@@ -10,6 +10,21 @@ User = get_user_model()
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
+class Plant(models.Model):
+    name = models.CharField(max_length=100, unique=True)
+
+    def __str__(self):
+        return self.name
+
+class Disease(models.Model):
+    name = models.CharField(max_length=100)
+    plant = models.ForeignKey(Plant, on_delete=models.CASCADE, related_name="diseases")
+    image = models.ImageField(upload_to='disease_samples/', blank=True, null=True)
+
+    def __str__(self):
+        return f"{self.name} ({self.plant.name})"
+
+
 class DiseaseHistory(models.Model):
     """
     Model to track the disease history of plants for each user.
@@ -18,8 +33,8 @@ class DiseaseHistory(models.Model):
     permission_classes = [IsAuthenticated] # Ensure only authenticated users can access
     historyID = models.AutoField(primary_key=True)  # Auto-incrementing ID for disease history
     user = models.ForeignKey(User, on_delete=models.CASCADE) # Link to the user
-    plantID = models.IntegerField() # Identifier for the plant
-    diseaseID = models.IntegerField() # Identifier for the detected disease
+    plantID = models.ForeignKey(Plant, on_delete=models.CASCADE) # Identifier for the plant
+    diseaseID = models.ForeignKey(Disease, on_delete=models.CASCADE) # Identifier for the detected disease
     date_detected = models.DateTimeField(auto_now_add=True)  # Timestamp when the disease is detected
     status = models.CharField(max_length=10) # Status of the disease (e.g., "active", "resolved")
 

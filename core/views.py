@@ -68,39 +68,54 @@ class PredictImageView(APIView):
                     disease_name = disease
                     message = f"The plant is not healthy and is affected by {disease}."
 
+                try:
+                    plant = Plant.objects.get(name=crop)
+                except Plant.DoesNotExist:
+                    logging.error(f"Plant not found in DB: {crop}")
+                    return Response({"error": f"Plant '{crop}' not found in database."}, status=404)
+                
+                if disease_name and disease_name != "Healthy":
+                    try:
+                        disease_obj = Disease.objects.get(name=disease_name, plant=plant)
+                    except Disease.DoesNotExist:
+                        logging.error(f"Disease '{disease_name}' not found for plant '{plant.name}'")
+                        return Response({"error": f"Disease '{disease_name}' not found for plant '{plant.name}'."}, status=404)
+                else:
+                    disease_obj = None  # If healthy or unknown
+
+                # Save the disease detection history to the database
+                DiseaseHistory.objects.create(
+                    user=request.user,
+                    plantID=plant, 
+                    diseaseID=disease_obj,
+                    status=health_status,
+                )
+                # Send email with detection results
+                try:
+                    send_detection_report_email(
+                        user=request.user,
+                        crop=crop,
+                        disease_name=disease_name,
+                        health_status=health_status,
+                        message=message,
+                        image_url=image_url
+                    )
+                except Exception as e:
+                    logging.error(f"Failed to send detection email: {str(e)}")
+
+                # Return the prediction result as a response
+                return Response({
+                    'condition_status': health_status,
+                    'crop':crop,
+                    'disease_name': disease_name,
+                    'prediction_raw': prediction,
+                    'message': message,
+                    'image_url': image_url
+                })
+
             except Exception as e:
                 logging.error(f"Error during prediction: {str(e)}")
                 return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-            # Save the disease detection history to the database
-            DiseaseHistory.objects.create(
-                user=request.user,
-                plantID=1,  # Placeholder, should be dynamic
-                diseaseID=1,  # Placeholder, should be dynamic
-                status=health_status,
-            )
-
-            # Send email with detection results
-            try:
-                send_detection_report_email(
-                    user=request.user,
-                    crop=crop,
-                    disease_name=disease_name,
-                    health_status=health_status,
-                    message=message,
-                    image_url=image_url
-                )
-            except Exception as e:
-                logging.error(f"Failed to send detection email: {str(e)}")
-
-            # Return the prediction result as a response
-            return Response({
-                'condition_status': health_status,
-                'disease_name': disease_name,
-                'prediction_raw': prediction,
-                'message': message,
-                'image_url': image_url
-            })
 
         # If the serializer is invalid, return the errors
         logging.warning(f"Invalid image upload: {serializer.errors}")
@@ -269,3 +284,12 @@ class DeleteHistoryDetailAPIView(APIView):
         delete.delete()
         logging.info(f"Deleted delete history record {pk}")
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+class CropLibraryListAPIView(APIView):
+    """
+    API to list plant names, disease names, and sample images.
+    """
+    def get(self, request):
+        diseases = Disease.objects.all()
+        serializer = CropLibrarySerializer(diseases, many=True, context={'request': request})
+        return Response(serializer.data)

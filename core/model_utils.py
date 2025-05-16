@@ -121,3 +121,4 @@ def parse_prediction(prediction):
     except Exception as e:
         logging.error(f"Error parsing prediction string '{prediction}': {e}")
         return {"crop": "-", "disease": "-"}
+

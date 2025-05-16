@@ -240,3 +240,15 @@ class ResetPasswordView(APIView):
                 logger.error(f"Reset password failed for {email}", exc_info=e)
                 return Response({"error": "Invalid data"}, status=400)
         return Response(serializer.errors, status=400)
+
+
+from rest_framework.generics import RetrieveUpdateAPIView
+from rest_framework.permissions import IsAuthenticated
+from .serializers import UserProfileSerializer
+
+class UserProfileView(RetrieveUpdateAPIView):
+    serializer_class = UserProfileSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_object(self):
+        return self.request.user  # Return the currently logged-in user

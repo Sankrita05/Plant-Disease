@@ -136,3 +136,31 @@ class ResetPasswordSerializer(serializers.Serializer):
             raise serializers.ValidationError("Password must not contain spaces.")
         logger.info("New password validated successfully")
         return password
+    
+
+class UserProfileSerializer(serializers.ModelSerializer):
+    """
+    Serializer for user profile details.
+    """
+    class Meta:
+        model = CustomUser
+        fields = [
+            'first_name', 
+            'last_name', 
+            'email', 
+            'phone_no', 
+            'region'
+        ]
+
+        # read_only_fields = ['email']  # Don't allow changing email
+    # def update(self, instance, validated_data):
+    #     """
+    #     Update the user profile with validated data.
+    #     """
+    #     instance.first_name = validated_data.get('first_name', instance.first_name)
+    #     instance.last_name = validated_data.get('last_name', instance.last_name)
+    #     instance.phone_no = validated_data.get('phone_no', instance.phone_no)
+    #     instance.region = validated_data.get('region', instance.region)
+    #     instance.save()
+    #     logger.info(f"User profile updated for email: {instance.email}")
+    #     return instance

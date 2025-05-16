@@ -12,6 +12,5 @@ urlpatterns = [
     path('model/', include('core.urls')),                 # Core model-related APIs (e.g., prediction, history)
 ]
 
-# Serve media files during development only
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

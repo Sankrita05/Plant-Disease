@@ -53,4 +53,6 @@ urlpatterns = [
     # GET: Retrieve a delete history record by its primary key (pk).
     # DELETE: Delete a delete history record.
     path('delete-history/<int:pk>/', DeleteHistoryDetailAPIView.as_view(), name='delete-history-detail'),
+
+    path('crop-library/', CropLibraryListAPIView.as_view(), name='disease-sample-list'),
 ]
