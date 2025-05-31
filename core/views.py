@@ -74,7 +74,7 @@ class PredictImageView(APIView):
                     logging.error(f"Plant not found in DB: {crop}")
                     return Response({"error": f"Plant '{crop}' not found in database."}, status=404)
                 
-                if disease_name and disease_name != "Healthy":
+                if disease_name:
                     try:
                         disease_obj = Disease.objects.get(name=disease_name, plant=plant)
                     except Disease.DoesNotExist:

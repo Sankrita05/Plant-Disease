@@ -34,7 +34,7 @@ class DiseaseHistory(models.Model):
     historyID = models.AutoField(primary_key=True)  # Auto-incrementing ID for disease history
     user = models.ForeignKey(User, on_delete=models.CASCADE) # Link to the user
     plantID = models.ForeignKey(Plant, on_delete=models.CASCADE) # Identifier for the plant
-    diseaseID = models.ForeignKey(Disease, on_delete=models.CASCADE) # Identifier for the detected disease
+    diseaseID = models.ForeignKey(Disease, on_delete=models.SET_NULL, null=True, blank=True) 
     date_detected = models.DateTimeField(auto_now_add=True)  # Timestamp when the disease is detected
     status = models.CharField(max_length=10) # Status of the disease (e.g., "active", "resolved")
 
